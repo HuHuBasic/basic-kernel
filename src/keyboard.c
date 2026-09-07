@@ -130,9 +130,14 @@ static void keyboard_callback(registers_t *regs)
         case 0x3C: keyboard_special_key = KEY_F2; return;
         case 0x3D: keyboard_special_key = KEY_F3; return;
         case 0x3E: keyboard_special_key = KEY_F4; return;
-        case 0x3F: case 0x40: case 0x41: case 0x42:  /* F5-F8 */
-        case 0x43: case 0x44: case 0x57: case 0x58:  /* F9-F12 */
-            return;
+        case 0x3F: keyboard_special_key = KEY_F5; return;
+        case 0x40: keyboard_special_key = KEY_F6; return;
+        case 0x41: keyboard_special_key = KEY_F7; return;
+        case 0x42: keyboard_special_key = KEY_F8; return;
+        case 0x43: keyboard_special_key = KEY_F9; return;
+        case 0x44: keyboard_special_key = KEY_F10; return;
+        case 0x57: keyboard_special_key = KEY_F11; return;
+        case 0x58: keyboard_special_key = KEY_F12; return;
     }
 
     if (scancode >= sizeof(keymap_normal)) return;

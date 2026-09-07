@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Basic OS — 启动中</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  background:#000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
+  overflow:hidden;
+  font-family:'Courier New',monospace;
+}
+
+.boot-screen{
+  text-align:center;
+  position:relative;
+}
+
+/* 字母跳跃容器 */
+.brand{
+  font-size:clamp(48px,10vw,96px);
+  font-weight:900;
+  display:flex;
+  justify-content:center;
+  gap:6px;
+  margin-bottom:40px;
+  letter-spacing:0.02em;
+}
+
+/* 每个字母独立动画 */
+.letter{
+  display:inline-block;
+  animation:jump 0.7s ease-in-out infinite;
+  text-shadow:0 0 20px currentColor,0 0 40px currentColor,0 0 80px currentColor;
+}
+
+/* 五个字母颜色: B=红 a=黄 s=蓝 i=绿 c=青 */
+.letter:nth-child(1){color:#ff3b3b; animation-delay:0s}
+.letter:nth-child(2){color:#ffd700; animation-delay:0.1s}
+.letter:nth-child(3){color:#3b8bff; animation-delay:0.2s}
+.letter:nth-child(4){color:#3bff6b; animation-delay:0.3s}
+.letter:nth-child(5){color:#3bffe8; animation-delay:0.4s}
+
+@keyframes jump{
+  0%,100%{transform:translateY(0);}
+  30%{transform:translateY(-28px);}
+  50%{transform:translateY(0);}
+  70%{transform:translateY(-12px);}
+  85%{transform:translateY(0);}
+}
+
+/* OS 名称 */
+.os-name{
+  font-size:clamp(16px,3vw,24px);
+  color:#aaa;
+  margin-bottom:50px;
+  letter-spacing:4px;
+  animation:fadeInOut 2s ease-in-out infinite;
+}
+
+@keyframes fadeInOut{
+  0%,100%{opacity:0.4}
+  50%{opacity:1}
+}
+
+/* 进度条 */
+.progress-bar{
+  width:clamp(200px,50vw,400px);
+  height:4px;
+  background:rgba(255,255,255,0.1);
+  border-radius:2px;
+  margin:0 auto 16px;
+  overflow:hidden;
+}
+
+.progress-bar .fill{
+  height:100%;
+  border-radius:2px;
+  background:linear-gradient(90deg,#ff3b3b,#ffd700,#3b8bff,#3bff6b,#3bffe8);
+  background-size:200% 100%;
+  animation:progress 4s ease-in-out infinite,
+             gradientShift 2s linear infinite;
+}
+
+@keyframes progress{
+  0%{width:0%}
+  30%{width:45%}
+  60%{width:70%}
+  85%{width:92%}
+  100%{width:100%}
+}
+
+@keyframes gradientShift{
+  0%{background-position:200% 0}
+  100%{background-position:0% 0}
+}
+
+/* 状态文字 */
+.status{
+  font-size:14px;
+  color:#666;
+  letter-spacing:2px;
+}
+
+.status span{
+  animation:dots 1.5s steps(4,end) infinite;
+}
+
+@keyframes dots{
+  0%{opacity:0}
+  25%{opacity:0}
+  50%{opacity:1}
+  75%{opacity:1}
+  100%{opacity:1}
+}
+
+/* 底部版本信息 */
+.version{
+  position:absolute;
+  bottom:30px;
+  left:0;
+  right:0;
+  text-align:center;
+  font-size:12px;
+  color:#333;
+  letter-spacing:1px;
+}
+
+/* 粒子背景 */
+.particles{
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  pointer-events:none;
+  z-index:0;
+}
+
+.particle{
+  position:absolute;
+  width:2px;
+  height:2px;
+  border-radius:50%;
+  animation:float 6s linear infinite;
+  opacity:0;
+}
+
+.particle:nth-child(1){left:10%;animation-delay:0s;background:#ff3b3b}
+.particle:nth-child(2){left:25%;animation-delay:1s;background:#ffd700}
+.particle:nth-child(3){left:40%;animation-delay:2s;background:#3b8bff}
+.particle:nth-child(4){left:55%;animation-delay:3s;background:#3bff6b}
+.particle:nth-child(5){left:70%;animation-delay:4s;background:#3bffe8}
+.particle:nth-child(6){left:85%;animation-delay:5s;background:#ff3b3b}
+.particle:nth-child(7){left:15%;animation-delay:0.5s;background:#ffd700}
+.particle:nth-child(8){left:35%;animation-delay:1.5s;background:#3b8bff}
+.particle:nth-child(9){left:50%;animation-delay:2.5s;background:#3bff6b}
+.particle:nth-child(10){left:65%;animation-delay:3.5s;background:#3bffe8}
+.particle:nth-child(11){left:80%;animation-delay:4.5s;background:#ff3b3b}
+.particle:nth-child(12){left:20%;animation-delay:5.5s;background:#ffd700}
+
+@keyframes float{
+  0%{bottom:-10px;opacity:0;transform:translateX(0)}
+  10%{opacity:1}
+  90%{opacity:0.8}
+  100%{bottom:110%;opacity:0;transform:translateX(40px)}
+}
+
+/* 启动完成后过渡 */
+.boot-done .brand{
+  animation:scaleDown 0.5s ease-in forwards;
+}
+
+@keyframes scaleDown{
+  to{transform:scale(0.6);opacity:0.5}
+}
+</style>
+</head>
+<body>
+
+<div class="particles">
+  <div class="particle"></div><div class="particle"></div>
+  <div class="particle"></div><div class="particle"></div>
+  <div class="particle"></div><div class="particle"></div>
+  <div class="particle"></div><div class="particle"></div>
+  <div class="particle"></div><div class="particle"></div>
+  <div class="particle"></div><div class="particle"></div>
+</div>
+
+<div class="boot-screen">
+  <!-- 跳跃字母 -->
+  <div class="brand">
+    <span class="letter">B</span>
+    <span class="letter">a</span>
+    <span class="letter">s</span>
+    <span class="letter">i</span>
+    <span class="letter">c</span>
+  </div>
+
+  <!-- OS 名称 -->
+  <div class="os-name">H U   B A S I C   O S</div>
+
+  <!-- 进度条 -->
+  <div class="progress-bar">
+    <div class="fill"></div>
+  </div>
+
+  <!-- 加载状态 -->
+  <div class="status">正在启动<span>...</span></div>
+
+  <!-- 版本 -->
+  <div class="version">64-bit  ·  32-bit  ·  Compatible</div>
+</div>
+
+</body>
+</html>

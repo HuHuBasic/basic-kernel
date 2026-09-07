@@ -8,6 +8,8 @@
 #include "timer.h"
 #include "memory.h"
 #include "string.h"
+#include "settings.h"
+#include "upgrade.h"
 
 /* 前向声明外部应用 */
 extern void app_browser(void);
@@ -308,10 +310,14 @@ void apps_init(void)
     apps_register("ascii",      "ASCII 艺术画廊",               "1.0", 1024,  app_ascii);
     apps_register("browser",    "basic browser 网页浏览器",     "1.0", 65536, app_browser);
     apps_register("appcenter",  "应用中心 - 管理所有应用",      "1.0", 8192,  app_center_main);
+    apps_register("settings",   "系统设置 - 显示/网络/关于",    "2.0", 4096,  app_settings);
+    apps_register("upgrade",    "系统升级 - 检查并安装更新",    "2.0", 4096,  app_upgrade);
 
-    /* 自动安装浏览器和应用中心 */
+    /* 自动安装浏览器、应用中心、设置和升级 */
     apps_install("browser");
     apps_install("appcenter");
+    apps_install("settings");
+    apps_install("upgrade");
 }
 
 int apps_register(const char *name, const char *desc, const char *version,

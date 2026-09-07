@@ -60,6 +60,11 @@ static uint8_t color(uint8_t fg, uint8_t bg) { return fg | bg << 4; }
 #define MSG_OK        color(VGA_COLOR_GREEN, VGA_COLOR_BLACK)
 #define MSG_ERR       color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK)
 #define MSG_WARN      color(VGA_COLOR_YELLOW, VGA_COLOR_BLACK)
+#define LABEL_CLR     color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK)
+#define VALUE_CLR     color(VGA_COLOR_WHITE, VGA_COLOR_BLACK)
+#define ACCENT_CLR    color(VGA_COLOR_GREEN, VGA_COLOR_BLACK)
+#define MUTED_CLR     color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK)
+#define WARN_CLR      color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK)
 
 /* Box-drawing */
 #define HL 0xC4
@@ -267,6 +272,167 @@ static void refresh_ui(int app_count, int sel, app_t *apps, const char *status, 
     terminal_update_cursor();
 }
 
+/* ---- 应用提交表单 ---- */
+static void app_submit_form(void)
+{
+    char name_buf[32];
+    char dev_buf[32];
+    char desc_buf[64];
+    char email_buf[48];
+    int field = 0; /* 0=名称, 1=开发者, 2=描述, 3=邮箱, 4=确认 */
+
+    memset(name_buf, 0, sizeof(name_buf));
+    memset(dev_buf, 0, sizeof(dev_buf));
+    memset(desc_buf, 0, sizeof(desc_buf));
+    memset(email_buf, 0, sizeof(email_buf));
+
+    int mx = 8, my = 4, mw = 64, mh = 16;
+    uint16_t *saved = (uint16_t *)malloc(mw * mh * 2);
+    if (saved) {
+        for (int row = 0; row < mh; row++)
+            for (int col = 0; col < mw; col++)
+                saved[row * mw + col] = VGA_BUF[(my + row) * VGA_WIDTH + (mx + col)];
+    }
+
+    vga_fill(mx, my, mw, mh, ' ', color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
+    draw_box(mx, my, mw, mh, color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK));
+    vga_text(mx + 2, my + 1, "提交新应用到 Basic 应用商店", color(VGA_COLOR_YELLOW, VGA_COLOR_BLACK));
+    vga_text(mx + 2, my + 2, "──────────────────────────────", color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK));
+
+    while (1) {
+        /* 绘制表单字段 */
+        const char *labels[] = { "应用名称:", "开发者:", "应用描述:", "联系邮箱:", NULL };
+        for (int i = 0; i < 4; i++) {
+            if (i == field) {
+                vga_fill(mx + 2, my + 3 + i * 2, mw - 4, 1, ' ',
+                         color(VGA_COLOR_BLACK, VGA_COLOR_CYAN));
+                vga_text(mx + 4, my + 3 + i * 2, labels[i],
+                         color(VGA_COLOR_BLACK, VGA_COLOR_CYAN));
+            } else {
+                vga_fill(mx + 2, my + 3 + i * 2, mw - 4, 1, ' ',
+                         color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
+                vga_text(mx + 4, my + 3 + i * 2, labels[i], LABEL_CLR);
+            }
+            /* 显示已输入的值 */
+            const char *vals[] = { name_buf, dev_buf, desc_buf, email_buf };
+            if (vals[i][0]) {
+                vga_text(mx + 16, my + 3 + i * 2, vals[i], VALUE_CLR);
+            }
+        }
+
+        /* 底部提示 */
+        vga_text(mx + 2, my + 12, "──────────────────────────────", color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK));
+        vga_text(mx + 2, my + 13, "  ↑↓=切换字段  Enter=编辑  Ctrl+S=提交  Esc=取消",
+                 MUTED_CLR);
+
+        int key = keyboard_poll();
+        if (key == KEY_NONE) {
+            char c = keyboard_getchar_nonblock();
+            if (c == 0) { __asm__ volatile("hlt"); continue; }
+
+            if (c == 27) { /* ESC */
+                if (saved) {
+                    for (int row = 0; row < mh; row++)
+                        for (int col = 0; col < mw; col++)
+                            VGA_BUF[(my + row) * VGA_WIDTH + (mx + col)] = saved[row * mw + col];
+                    free(saved);
+                }
+                return;
+            }
+
+            if (c == '\n' || c == '\r') {
+                /* 编辑当前字段 */
+                char *buf = NULL;
+                int maxlen = 0;
+                switch (field) {
+                    case 0: buf = name_buf; maxlen = 30; break;
+                    case 1: buf = dev_buf; maxlen = 30; break;
+                    case 2: buf = desc_buf; maxlen = 62; break;
+                    case 3: buf = email_buf; maxlen = 46; break;
+                }
+                if (buf) {
+                    memset(buf, 0, maxlen + 1);
+                    /* 清除行 */
+                    vga_fill(mx + 2, my + 3 + field * 2, mw - 4, 1, ' ',
+                             color(VGA_COLOR_BLACK, VGA_COLOR_CYAN));
+                    vga_text(mx + 4, my + 3 + field * 2, labels[field],
+                             color(VGA_COLOR_BLACK, VGA_COLOR_CYAN));
+                    vga_text(mx + 16, my + 3 + field * 2, "_", VALUE_CLR);
+
+                    int pos = 0;
+                    while (1) {
+                        char ch = keyboard_getchar_nonblock();
+                        if (ch == 0) { __asm__ volatile("hlt"); continue; }
+                        if (ch == '\n' || ch == '\r') {
+                            buf[pos] = '\0';
+                            break;
+                        }
+                        if (ch == 27) { buf[0] = '\0'; break; }
+                        if (ch == '\b') {
+                            if (pos > 0) pos--;
+                            buf[pos] = '\0';
+                        } else if (ch >= ' ' && pos < maxlen) {
+                            buf[pos++] = ch;
+                            buf[pos] = '\0';
+                        }
+                        /* 刷新显示 */
+                        vga_fill(mx + 16, my + 3 + field * 2, maxlen, 1, ' ',
+                                 color(VGA_COLOR_BLACK, VGA_COLOR_CYAN));
+                        vga_text(mx + 16, my + 3 + field * 2, buf, VALUE_CLR);
+                        if (buf[pos] == '\0' && pos < maxlen) {
+                            vga_put(mx + 16 + pos, my + 3 + field * 2, '_', VALUE_CLR);
+                        }
+                    }
+                }
+            }
+
+            if (c == 19) { /* Ctrl+S = 提交 */
+                if (name_buf[0] && dev_buf[0] && desc_buf[0] && email_buf[0]) {
+                    /* 提交成功 */
+                    vga_fill(mx, my, mw, mh, ' ', color(VGA_COLOR_WHITE, VGA_COLOR_BLACK));
+                    draw_box(mx, my, mw, mh, color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK));
+                    vga_text(mx + 2, my + 3, "提交成功!", ACCENT_CLR);
+                    vga_text(mx + 2, my + 5, "应用名称: ", LABEL_CLR);
+                    vga_text(mx + 14, my + 5, name_buf, VALUE_CLR);
+                    vga_text(mx + 2, my + 6, "开发者: ", LABEL_CLR);
+                    vga_text(mx + 14, my + 6, dev_buf, VALUE_CLR);
+                    vga_text(mx + 2, my + 8, "审核通过后应用将出现在应用商店中。", MUTED_CLR);
+                    vga_text(mx + 2, my + 10, "按任意键返回...", MUTED_CLR);
+
+                    while (keyboard_poll() == 0 && keyboard_getchar_nonblock() == 0)
+                        __asm__ volatile("hlt");
+
+                    if (saved) {
+                        for (int row = 0; row < mh; row++)
+                            for (int col = 0; col < mw; col++)
+                                VGA_BUF[(my + row) * VGA_WIDTH + (mx + col)] = saved[row * mw + col];
+                        free(saved);
+                    }
+                    return;
+                } else {
+                    /* 显示错误 */
+                    vga_text(mx + 2, my + 14, "请填写所有必填字段!", WARN_CLR);
+                }
+            }
+            continue;
+        }
+
+        if (key == KEY_UP) {
+            field = (field > 0) ? field - 1 : 3;
+        } else if (key == KEY_DOWN) {
+            field = (field < 3) ? field + 1 : 0;
+        } else if (key == KEY_ESC) {
+            if (saved) {
+                for (int row = 0; row < mh; row++)
+                    for (int col = 0; col < mw; col++)
+                        VGA_BUF[(my + row) * VGA_WIDTH + (mx + col)] = saved[row * mw + col];
+                free(saved);
+            }
+            return;
+        }
+    }
+}
+
 /* ---- 应用中心入口 ---- */
 void app_center_main(void)
 {
@@ -304,7 +470,7 @@ void app_center_main(void)
 
     /* 底部帮助栏 */
     vga_fill(0, 23, 80, 1, ' ', HELP_BG);
-    vga_text(1, 23, "  ↑↓=选择(循环)  Enter=安装/运行  U=卸载  R=运行  I=安装  F1=帮助  Q=退出",
+    vga_text(1, 23, "  ↑↓=选择  Enter=安装/运行  U=卸载  R=运行  I=安装  S=提交应用  F1=帮助  Q=退出",
              color(VGA_COLOR_BLACK, VGA_COLOR_DARK_GREY));
 
     int sel = 0;
@@ -483,6 +649,26 @@ void app_center_main(void)
                         status_clr = MSG_WARN;
                     }
                 }
+                refresh_ui(num_apps, sel, apps, status_msg, status_clr);
+                continue;
+            }
+
+            if (c == 's' || c == 'S') {
+                /* 提交新应用 */
+                app_submit_form();
+                /* 恢复界面 */
+                vga_fill(0, 0, 80, 25, ' ', BG_CLR);
+                vga_fill(0, 0, 80, 1, ' ', TITLE_BG);
+                vga_text(1, 0, "  HU basic 应用商店", TITLE_CLR);
+                vga_text(30, 0, "v2.0", color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_DARK_GREY));
+                vga_text(55, 0, "共 ", color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_DARK_GREY));
+                vga_text(57, 0, cnt_buf, color(VGA_COLOR_YELLOW, VGA_COLOR_DARK_GREY));
+                vga_text(59, 0, "个应用", color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_DARK_GREY));
+                vga_fill(0, 23, 80, 1, ' ', HELP_BG);
+                vga_text(1, 23, "  ↑↓=选择  Enter=安装/运行  U=卸载  R=运行  I=安装  S=提交应用  F1=帮助  Q=退出",
+                         color(VGA_COLOR_BLACK, VGA_COLOR_DARK_GREY));
+                status_msg = "应用提交成功! 等待审核...";
+                status_clr = MSG_OK;
                 refresh_ui(num_apps, sel, apps, status_msg, status_clr);
                 continue;
             }

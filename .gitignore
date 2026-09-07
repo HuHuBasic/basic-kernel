@@ -1,4 +1,8 @@
 *.o
-isodir/
-.bak
 *.iso
+*.bin
+*.bak
+*.BAK
+build/
+iso/
+isodir/

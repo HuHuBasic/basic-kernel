@@ -11,6 +11,7 @@
 #include "apps.h"
 #include "ports.h"
 #include "mouse.h"
+#include "version.h"
 
 /* 桌面常量 */
 #define MAX_DESKTOP_ICONS 12
@@ -80,11 +81,13 @@ static const char *menu_items[] = {
     "  Monitor     ",
     "  ASCII Art   ",
     "  Browser     ",
+    "  Settings    ",
+    "  Upgrade     ",
     "  About       ",
     "  Shutdown    ",
     NULL
 };
-static int menu_count = 9;
+static int menu_count = 11;
 
 /* ---- 桌面渲染 ---- */
 
@@ -162,7 +165,7 @@ static void draw_panel(void)
     vga_text(70, py, time_buf, PANEL_COLOR);
 
     /* 版本 */
-    vga_text(70, py + 1, "v1.1", color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_DARK_GREY));
+    vga_text(68, py + 1, "v" BASIC_OS_VERSION_STR, color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_DARK_GREY));
 }
 
 static void draw_icons(void)
@@ -219,7 +222,7 @@ static void draw_status_bar(void)
 {
     /* 顶部状态栏 */
     vga_fill(0, 0, 80, 1, ' ', color(VGA_COLOR_WHITE, VGA_COLOR_DARK_GREY));
-    vga_text(1, 0, "Basic Kernel Desktop", color(VGA_COLOR_BLACK, VGA_COLOR_DARK_GREY));
+    vga_text(1, 0, BASIC_OS_FULL_STRING " Desktop", color(VGA_COLOR_BLACK, VGA_COLOR_DARK_GREY));
     vga_text(60, 0, "F1=Help  Esc=Menu", color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_DARK_GREY));
 }
 
@@ -338,7 +341,22 @@ void desktop_init(void)
     icons[8].label = "AppCenter"; icons[8].app = "appcenter";
     icons[8].installed = 1;
 
-    icon_count = 9;
+    ix += 12;
+    icons[9].x = ix; icons[9].y = iy; icons[9].w = 8; icons[9].h = 4;
+    icons[9].icon[0] = "  ____  "; icons[9].icon[1] = " |  _ \\ ";
+    icons[9].icon[2] = " | | | |"; icons[9].icon[3] = " |____/ ";
+    icons[9].label = "Settings"; icons[9].app = "settings";
+    icons[9].installed = 1;
+
+    /* 第三行 */
+    ix = 3; iy = 17;
+    icons[10].x = ix; icons[10].y = iy; icons[10].w = 8; icons[10].h = 4;
+    icons[10].icon[0] = "  _   _ "; icons[10].icon[1] = " | | | |";
+    icons[10].icon[2] = " | |_| |"; icons[10].icon[3] = "  \\___/ ";
+    icons[10].label = "Upgrade"; icons[10].app = "upgrade";
+    icons[10].installed = 1;
+
+    icon_count = 11;
 
     /* 清除特殊键缓冲区 */
     keyboard_clear_special();
@@ -383,9 +401,10 @@ void desktop_run(void)
                             if (strcmp(icons[i].app, "terminal") == 0) {
                                 desktop_running = 0;
                             } else if (strcmp(icons[i].app, "about") == 0) {
-                                show_message_box("Basic Kernel v1.1",
-                                    "x86 32-bit teaching OS kernel.\n"
+                                show_message_box(BASIC_OS_FULL_STRING,
+                                    "x86 real OS kernel with GUI desktop.\n"
                                     "Features: GDT/IDT/VGA/Keyboard/PIT/Memory/Apps/Desktop\n"
+                                    "Kernel: " KERNEL_VERSION_STR "\n"
                                     "Built on " __DATE__);
                             } else if (strcmp(icons[i].app, "reboot") == 0) {
                                 show_message_box("Reboot", "Use 'reboot' in terminal to restart.");
@@ -449,11 +468,14 @@ void desktop_run(void)
                                 case 4: if (icons[3].installed) apps_run("monitor"); break;
                                 case 5: if (icons[4].installed) apps_run("ascii"); break;
                                 case 6: if (icons[7].installed) apps_run("browser"); break;
-                                case 7: show_message_box("Basic Kernel v1.1",
-                                            "x86 32-bit teaching OS kernel.\n"
+                                case 7: if (icons[9].installed) apps_run("settings"); break;
+                                case 8: if (icons[10].installed) apps_run("upgrade"); break;
+                                case 9: show_message_box(BASIC_OS_FULL_STRING,
+                                            "x86 real OS kernel with GUI desktop.\n"
                                             "Features: GDT/IDT/VGA/Keyboard/PIT/Memory/Apps/Desktop\n"
+                                            "Kernel: " KERNEL_VERSION_STR "\n"
                                             "Built on " __DATE__); break;
-                                case 8: show_message_box("Reboot", "Use 'reboot' in terminal to restart."); break;
+                                case 10: show_message_box("Reboot", "Use 'reboot' in terminal to restart."); break;
                             }
                             menu_open = 0;
                             draw_bg(); draw_status_bar(); draw_icons(); draw_panel();
@@ -602,12 +624,21 @@ void desktop_run(void)
                         if (icons[7].installed) apps_run("browser");
                         else show_message_box("Browser", "Not installed. Use 'install browser' in terminal.");
                         break;
-                    case 7: /* About */
-                        show_message_box("Basic Kernel v1.1",
-                            "x86 32-bit teaching OS kernel.\n"
-                            "Features: GDT/IDT/VGA/Keyboard/PIT/Memory/Apps/Desktop");
+                    case 7: /* Settings */
+                        if (icons[9].installed) apps_run("settings");
+                        else show_message_box("Settings", "Not installed. Use 'install settings' in terminal.");
                         break;
-                    case 8: /* Shutdown */
+                    case 8: /* Upgrade */
+                        if (icons[10].installed) apps_run("upgrade");
+                        else show_message_box("Upgrade", "Not installed. Use 'install upgrade' in terminal.");
+                        break;
+                    case 9: /* About */
+                        show_message_box(BASIC_OS_FULL_STRING,
+                            "x86 real OS kernel with GUI desktop.\n"
+                            "Features: GDT/IDT/VGA/Keyboard/PIT/Memory/Apps/Desktop\n"
+                            "Kernel: " KERNEL_VERSION_STR);
+                        break;
+                    case 10: /* Shutdown */
                         desktop_running = 0;
                         break;
                 }
@@ -620,9 +651,10 @@ void desktop_run(void)
                         if (strcmp(ic->app, "terminal") == 0) {
                             desktop_running = 0;
                         } else if (strcmp(ic->app, "about") == 0) {
-                            show_message_box("Basic Kernel v1.1",
-                                "x86 32-bit teaching OS kernel.\n"
+                            show_message_box(BASIC_OS_FULL_STRING,
+                                "x86 real OS kernel with GUI desktop.\n"
                                 "Features: GDT/IDT/VGA/Keyboard/PIT/Memory/Apps/Desktop\n"
+                                "Kernel: " KERNEL_VERSION_STR "\n"
                                 "Built on " __DATE__);
                         } else if (strcmp(ic->app, "reboot") == 0) {
                             show_message_box("Reboot", "Use 'reboot' in terminal to restart.");

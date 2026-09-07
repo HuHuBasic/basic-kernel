@@ -19,6 +19,14 @@
 #define KEY_F2      0x111
 #define KEY_F3      0x112
 #define KEY_F4      0x113
+#define KEY_F5      0x114
+#define KEY_F6      0x115
+#define KEY_F7      0x116
+#define KEY_F8      0x117
+#define KEY_F9      0x118
+#define KEY_F10     0x119
+#define KEY_F11     0x11A
+#define KEY_F12     0x11B
 
 /* 初始化键盘 */
 void keyboard_init(void);
